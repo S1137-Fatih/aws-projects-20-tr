@@ -1,16 +1,20 @@
-cfn AWSTemplateFormatVersion: 2010-09-09
+AWSTemplateFormatVersion: 2010-09-09
 Description: |
-  
+  This CloudFormation Template was written for running Kittens Carousel Static Website on EC2. 
+  Kittens Carousel Static Website will be deployed on Amazon Linux 2023 EC2 Instance with custom 
+  security group which allows http connections on port 80 and ssh port 22 from anywhere. Kittens Carousel Static Website
+  is downloaded from my Public Github repository, then deployed on Apache Web Server
+
 Parameters:
   keypair:
-    Description: Choose you keypair
+    Description: Choose your keypair
     Type: AWS::EC2::KeyPair::KeyName
     Default: fatih-aws20
 
   ParameterName:
     Description: Choose your imageid
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-arm64
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-arm64 
 Resources:
   
   mySecGrp:
@@ -18,7 +22,7 @@ Resources:
     Properties:
       GroupDescription: Allows ssh and http  # Required
       GroupName: okt-sec-grp-aws20tr
-      SecurityGroupIngress:
+      SecurityGroupIngress: 
         - CidrIp: 0.0.0.0/0
           FromPort: 22
           IpProtocol: tcp
@@ -27,8 +31,31 @@ Resources:
           FromPort: 80
           IpProtocol: tcp
           ToPort: 80
-          
-      
   
-
+  mywebserver:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-08b5b3a93ed654d19
+      InstanceType: t2.micro
+      KeyName: !Ref keypair
+      SecurityGroupIds: 
+        - !Ref mySecGrp
+      Tags: 
+        - Key: Name
+          Value: !Sub Web Server of ${AWS::StackName}
+      UserData: !Base64 |
+        #! /bin/bash
+        dnf update -y
+        dnf install httpd -y
+        FOLDER = "https://raw.githubusercontent.com/S1137-Fatih/aws-projects-20-tr/refs/heads/main/101-kittens-carousel-static-website-ec2/static-web/index.html"
+        cd /var/www/html/
+        wget ${FOLDER}/index.html
+        wget ${FOLDER}/cat0.jpg
+        wget ${FOLDER}/cat1.jpg
+        wget ${FOLDER}/cat2.jpg
+        systemctl start httpd
+        systemctl enable httpd
 Outputs:
+  WebSiteURL:
+    Description: URL of website
+    Value: !Sub "http://${mywebserver.PublicDnsName}"
